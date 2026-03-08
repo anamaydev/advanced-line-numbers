@@ -1,6 +1,61 @@
 import {MarkdownView, Plugin} from "obsidian";
 import {ViewUpdate, ViewPlugin, EditorView, gutter, GutterMarker, BlockInfo} from "@codemirror/view";
 
+/* GutterMarker rendering a single line number in the gutter */
+class LineNumberMarker extends GutterMarker {
+  number:number;
+
+  constructor(number:number) {
+    super();
+    this.number = number;
+  }
+
+  /* create the DOM element that displays the line number */
+  toDOM(): HTMLElement {
+    const div = document.createElement("div");
+    div.textContent = this.number.toString();
+    div.className = "cm-gutterElement";
+    return div;
+  }
+
+  /* return true if the other marker has the same line number to skip re-rendering markers with the same line number */
+  eq(other: GutterMarker): boolean {
+    return other instanceof LineNumberMarker &&
+      other.number === this.number;
+  }
+}
+
+/* create a gutter extension that displays absolute line numbers alongside the editor */
+const createLineNumberGutter = () => gutter({
+  class: "cm-lineNumbers",
+  lineMarker(view: EditorView, line: BlockInfo) {
+    /* get the 1-indexed absolute line number for the current line */
+    const lineNumber = view.state.doc.lineAt(line.from).number;
+    return new LineNumberMarker(lineNumber);
+  }
+});
+
+/* create a ViewPlugin that recalculates and displays the cursor's line and column on every editor update */
+const createCursorPositionPlugin = (statusBarItemElement: HTMLElement) => {
+  return ViewPlugin.define(() => ({
+    update(update: ViewUpdate) {
+      /* get the cursor's absolute character offset in the document */
+      const cursorPosition = update.state.selection.main.head;
+
+      /* get the line number and line start offset */
+      const cursorOffset = update.state.doc.lineAt(cursorPosition);
+
+      const lineNumber = cursorOffset.number;                         /* 1-indexed in CodeMirror 6 */
+      const columnNumber = cursorPosition - cursorOffset.from +1;     /* convert 0-indexed offset to 1-indexed column */
+
+      statusBarItemElement.setText(`Ln ${lineNumber}, Col ${columnNumber}`);
+    },
+    destroy() {
+      console.log("destroy");
+    }
+  }));
+};
+
 export default class LineNumbersPlugin extends Plugin {
   statusBarItemElement: HTMLElement;
 
@@ -35,60 +90,3 @@ export default class LineNumbersPlugin extends Plugin {
     }
   }
 };
-
-/* create a ViewPlugin that recalculates and displays the cursor's line and column on every editor update */
-const createCursorPositionPlugin = (statusBarItemElement: HTMLElement) => {
-  return ViewPlugin.define(() => ({
-    update(update: ViewUpdate) {
-      /* get the cursor's absolute character offset in the document */
-      const cursorPosition = update.state.selection.main.head;
-
-      /* get the line number and line start offset */
-      const cursorOffset = update.state.doc.lineAt(cursorPosition);
-
-      const lineNumber = cursorOffset.number;                         /* 1-indexed in CodeMirror 6 */
-      const columnNumber = cursorPosition - cursorOffset.from +1;     /* convert 0-indexed offset to 1-indexed column */
-
-      statusBarItemElement.setText(`Ln ${lineNumber}, Col ${columnNumber}`);
-    },
-    destroy() {
-      console.log("destroy");
-    }
-  }));
-};
-
-/* GutterMarker rendering a single line number in the gutter */
-class LineNumberMarker extends GutterMarker {
-  number:number;
-
-  constructor(number:number) {
-    super();
-    this.number = number;
-  }
-
-  /* create the DOM element that displays the line number */
-  toDOM(): HTMLElement {
-    const div = document.createElement("div");
-    div.textContent = this.number.toString();
-    div.className = "cm-gutterElement";
-    return div;
-  }
-
-  /* return true if the other marker has the same line number to skip re-rendering markers with the same line number */
-  eq(other: GutterMarker): boolean {
-    return other instanceof LineNumberMarker &&
-      other.number === this.number;
-  }
-}
-
-/* create a gutter extension that displays absolute line numbers alongside the editor */
-function createLineNumberGutter() {
-  return gutter({
-    class: "cm-lineNumbers",
-    lineMarker(view: EditorView, line: BlockInfo) {
-      /* get the 1-indexed absolute line number for the current line */
-      const lineNumber = view.state.doc.lineAt(line.from).number;
-      return new LineNumberMarker(lineNumber);
-    }
-  });
-}
