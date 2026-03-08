@@ -1,5 +1,5 @@
 import {MarkdownView, Plugin} from "obsidian";
-import {ViewUpdate, ViewPlugin} from "@codemirror/view";
+import {ViewUpdate, ViewPlugin, EditorView, gutter, GutterMarker, BlockInfo} from "@codemirror/view";
 
 export default class LineNumbersPlugin extends Plugin {
   statusBarItemElement: HTMLElement;
@@ -11,6 +11,9 @@ export default class LineNumbersPlugin extends Plugin {
     /* register a CodeMirror ViewPlugin to track and display cursor position */
     const cursorPlugin = createCursorPositionPlugin(this.statusBarItemElement);
     this.registerEditorExtension(cursorPlugin);
+
+    /* register a CodeMirror GutterMarker to add line number */
+    this.registerEditorExtension(createLineNumberGutter());
 
     /* hide/show the status bar item depending on whether the active leaf is a Markdown file */
     this.registerEvent(
@@ -53,3 +56,39 @@ const createCursorPositionPlugin = (statusBarItemElement: HTMLElement) => {
     }
   }));
 };
+
+/* GutterMarker rendering a single line number in the gutter */
+class LineNumberMarker extends GutterMarker {
+  number:number;
+
+  constructor(number:number) {
+    super();
+    this.number = number;
+  }
+
+  /* create the DOM element that displays the line number */
+  toDOM(): HTMLElement {
+    const div = document.createElement("div");
+    div.textContent = this.number.toString();
+    div.className = "cm-gutterElement";
+    return div;
+  }
+
+  /* return true if the other marker has the same line number to skip re-rendering markers with the same line number */
+  eq(other: GutterMarker): boolean {
+    return other instanceof LineNumberMarker &&
+      other.number === this.number;
+  }
+}
+
+/* create a gutter extension that displays absolute line numbers alongside the editor */
+function createLineNumberGutter() {
+  return gutter({
+    class: "cm-lineNumbers",
+    lineMarker(view: EditorView, line: BlockInfo) {
+      /* get the 1-indexed absolute line number for the current line */
+      const lineNumber = view.state.doc.lineAt(line.from).number;
+      return new LineNumberMarker(lineNumber);
+    }
+  });
+}
