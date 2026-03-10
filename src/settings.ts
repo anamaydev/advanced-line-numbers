@@ -43,6 +43,11 @@ export class LineNumbersSettingTab extends PluginSettingTab {
 					.onChange(async (value) => {
 						this.plugin.settings.mode = value as "absolute" | "relative" | "hybrid";
 						await this.plugin.saveSettings();
+
+						/* notify the editor that extensions need rebuilding
+						* so the gutter immediately reflects the new line number mode
+						* */
+						this.plugin.refreshExtensions();
 					})
 			);
 

@@ -50,9 +50,13 @@ const createLineNumberGutter = (settings: LineNumbersSettings) => gutter({
     return new LineNumberMarker(lineNumber);
   },
 
-  /* force the gutter to re-render whenever the cursor/selection changes */
-  lineMarkerChange(update: ViewUpdate): boolean {
-    return update.selectionSet;
+  /*
+  * force the gutter to re-render on every update,
+  * gutter immediately reflects the new mode when
+  * settings.mode and extensions are refreshed
+  * */
+  lineMarkerChange(): boolean {
+    return true;
   }
 });
 
@@ -98,6 +102,7 @@ const createCursorPositionPlugin = (statusBarItemElement: HTMLElement) => {
 export default class LineNumbersPlugin extends Plugin {
   statusBarItemElement: HTMLElement;
   settings: LineNumbersSettings;
+  private editorExtensions: any[] = [];
 
   async onload(){
     /* load the settings when the plugin loads */
@@ -148,11 +153,12 @@ export default class LineNumbersPlugin extends Plugin {
     });
 
     /* register CodeMirror extensions for cursor tracking, status bar, and line gutter */
-    this.registerEditorExtension([
+    this.editorExtensions = [
       cursorPositionField,
       createCursorPositionPlugin(this.statusBarItemElement),
       createLineNumberGutter(this.settings)
-    ]);
+    ]
+    this.registerEditorExtension(this.editorExtensions);
 
     /* hide/show the status bar item depending on whether the active leaf is a Markdown file */
     this.registerEvent(
@@ -170,6 +176,19 @@ export default class LineNumbersPlugin extends Plugin {
 
     /* set initial visibility of the status bar item when plugin first loads */
     this.updateStatusBarVisibility();
+  }
+
+  refreshExtensions(): void {
+    /* clear without creating a new array (empties the array so the same reference is reused */
+    this.editorExtensions.length = 0;
+
+    /* push fresh extensions that capture the updated settings */
+    this.editorExtensions.push(
+      cursorPositionField,
+      createCursorPositionPlugin(this.statusBarItemElement),
+      createLineNumberGutter(this.settings)     /* capture current settings.mode*/
+    );
+    this.app.workspace.updateOptions();         /* force Obsidian to re-apply extensions */
   }
 
   /* toggle status bar visibility based on settings and active view */
