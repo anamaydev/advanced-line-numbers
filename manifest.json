@@ -3,7 +3,7 @@
 	"name": "Line Numbers",
 	"version": "1.0.0",
 	"minAppVersion": "0.15.0",
-	"description": "Show relative and absolute line numbers in markdown files",
+	"description": "Show absolute, relative, and hybrid line numbers in markdown files, with cursor position (line and column) in the status bar",
 	"author": "anamaydev",
 	"authorUrl": "https://github.com/anamaydev",
 	"isDesktopOnly": true

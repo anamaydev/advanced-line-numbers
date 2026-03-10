@@ -135,20 +135,20 @@ export default class LineNumbersPlugin extends Plugin {
   /* toggle status bar visibility based on settings and active view */
   updateStatusBarVisibility(): void {
     if (!this.settings.showCursorPositionInStatusBar) {
-      this.statusBarItemElement.style.display = "none";
+      this.statusBarItemElement.addClass("statusbar-cursor-position");
       return;
     }
     const markdownView = this.app.workspace.getActiveViewOfType(MarkdownView);
     if (!markdownView) {
-      this.statusBarItemElement.style.display = "none";
+      this.statusBarItemElement.addClass("statusbar-cursor-position");
     } else {
-      this.statusBarItemElement.style.display = "block";
+      this.statusBarItemElement.removeClass("statusbar-cursor-position");
     }
   }
 
   /* retrieve data from disk */
   async loadSettings() {
-    this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+    this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData() as Partial<LineNumbersSettings>);
   }
 
   /* save data from disk */

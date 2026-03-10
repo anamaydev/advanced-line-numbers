@@ -31,7 +31,7 @@ export class LineNumbersSettingTab extends PluginSettingTab {
 		containerEl.empty();
 		/* dropdown setting for selecting the line numbering mode */
 		new Setting(containerEl)
-			.setName("Line Numbering Mode")
+			.setName("Line numbering mode")
 			.setDesc("Choose how line numbers are shown in the editor: absolute, relative to the cursor, or hybrid.")
 			.addDropdown((dropdown) =>
 				dropdown
@@ -48,7 +48,7 @@ export class LineNumbersSettingTab extends PluginSettingTab {
 
 		/* toggle setting for showing cursor position in the status bar */
 		new Setting(containerEl)
-			.setName("Show Cursor Position in Status Bar")
+			.setName("Show cursor position in status bar")
 			.setDesc("Display the current cursor line and column position in the status bar.")
 			.addToggle((toggle) =>
 				toggle
