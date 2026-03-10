@@ -1,16 +1,12 @@
 import {MarkdownView, Plugin} from "obsidian";
 import {ViewUpdate, ViewPlugin, EditorView, gutter, GutterMarker, BlockInfo} from "@codemirror/view";
-import {StateField, EditorState, Transaction} from "@codemirror/state";
+import {StateField, EditorState, Transaction, Text} from "@codemirror/state";
+import { LineNumbersSettings, DEFAULT_SETTINGS, LineNumbersSettingTab} from "./settings";
 
 /* data representing the cursor's current position in the editor */
 interface CursorData {
   lineNumber: number;
   columnNumber: number;
-}
-
-/* settings controlling which line number mode to display */
-interface LineNumberSettings {
-  mode: "absolute" | "relative" | "hybrid";
 }
 
 /* GutterMarker rendering a single line number in the gutter */
@@ -38,7 +34,7 @@ class LineNumberMarker extends GutterMarker {
 }
 
 /* create a gutter extension that displays line numbers alongside the editor based on the given mode */
-const createLineNumberGutter = (settings: LineNumberSettings) => gutter({
+const createLineNumberGutter = (settings: LineNumbersSettings) => gutter({
   class: "cm-lineNumbers",
   lineMarker(view: EditorView, line: BlockInfo) {
     /* get the 1-indexed absolute line number for the current line */
@@ -60,31 +56,27 @@ const createLineNumberGutter = (settings: LineNumberSettings) => gutter({
   }
 });
 
+/* return cursor line and column from a document offset */
+function getCursorData(doc: Text, head: number): CursorData {
+  const line = doc.lineAt(head);
+  return {
+    lineNumber: line.number,
+    columnNumber: head - line.from + 1,
+  };
+}
+
 /* StateField that tracks the cursor's line and column across transactions */
 const cursorPositionField = StateField.define<CursorData>({
   /* initialise from the editor's starting selection */
   create(state: EditorState): CursorData{
-    const cursorPosition = state.selection.main.head;
-    const cursorOffset = state.doc.lineAt(cursorPosition);
-
-    const lineNumber = cursorOffset.number;                         /* 1-indexed in CodeMirror 6 */
-    const columnNumber = cursorPosition - cursorOffset.from +1;     /* convert 0-indexed offset to 1-indexed column */
-
-    return {lineNumber, columnNumber};
+    return getCursorData(state.doc, state.selection.main.head);
   },
 
   /* recalculate only when the selection has actually changed */
   update(value: CursorData, transaction: Transaction){
     if(!transaction.newSelection.eq(transaction.startState.selection)){
-      const cursorPosition = transaction.newSelection.main.head;
-      const cursorOffset = transaction.state.doc.lineAt(cursorPosition);
-
-      const lineNumber = cursorOffset.number;
-      const columnNumber = cursorPosition - cursorOffset.from +1;
-
-      return {lineNumber, columnNumber};
+      return getCursorData(transaction.state.doc, transaction.newSelection.main.head);
     }
-
     return value;
   }
 })
@@ -105,12 +97,15 @@ const createCursorPositionPlugin = (statusBarItemElement: HTMLElement) => {
 /* register the cursor tracking field, status bar plugin, and custom gutter */
 export default class LineNumbersPlugin extends Plugin {
   statusBarItemElement: HTMLElement;
-  settings: LineNumberSettings;
+  settings: LineNumbersSettings;
 
   async onload(){
+    /* load the settings when the plugin loads */
+    await this.loadSettings();
+    this.addSettingTab(new LineNumbersSettingTab(this.app, this));
+
     /* create status bar item */
     this.statusBarItemElement = this.addStatusBarItem();
-    this.settings = {mode : "hybrid"};
 
     /* register CodeMirror extensions for cursor tracking, status bar, and line gutter */
     this.registerEditorExtension([
@@ -121,11 +116,8 @@ export default class LineNumbersPlugin extends Plugin {
 
     /* hide/show the status bar item depending on whether the active leaf is a Markdown file */
     this.registerEvent(
-      this.app.workspace.on("active-leaf-change", (leaf) => {
-        if(!leaf || leaf.view.getViewType() !== "markdown")
-          this.statusBarItemElement.style.display = "none";
-        else
-          this.statusBarItemElement.style.display = "block";
+      this.app.workspace.on("active-leaf-change", () => {
+        this.updateStatusBarVisibility();
       })
     )
 
@@ -135,5 +127,32 @@ export default class LineNumbersPlugin extends Plugin {
       const cursor = markdownView.editor.getCursor();
       this.statusBarItemElement.setText(`Ln ${cursor.line + 1}, Col ${cursor.ch + 1}`);
     }
+
+    /* set initial visibility of the status bar item when plugin first loads */
+    this.updateStatusBarVisibility();
+  }
+
+  /* toggle status bar visibility based on settings and active view */
+  updateStatusBarVisibility(): void {
+    if (!this.settings.showCursorPositionInStatusBar) {
+      this.statusBarItemElement.style.display = "none";
+      return;
+    }
+    const markdownView = this.app.workspace.getActiveViewOfType(MarkdownView);
+    if (!markdownView) {
+      this.statusBarItemElement.style.display = "none";
+    } else {
+      this.statusBarItemElement.style.display = "block";
+    }
+  }
+
+  /* retrieve data from disk */
+  async loadSettings() {
+    this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+  }
+
+  /* save data from disk */
+  async saveSettings() {
+    await this.saveData(this.settings);
   }
 };
