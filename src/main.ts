@@ -13,18 +13,20 @@ interface CursorData {
 class LineNumberMarker extends GutterMarker {
   lineNumber: number;
   isActive: boolean;
+  mode: "absolute" | "relative" | "hybrid";
 
-  constructor(lineNumber: number, isActive: boolean) {
+  constructor(lineNumber: number, isActive: boolean, mode: "absolute" | "relative" | "hybrid") {
     super();
     this.lineNumber = lineNumber;
     this.isActive = isActive;
+    this.mode = mode;
   }
 
   /* create the DOM element that displays the line number */
   toDOM(): HTMLElement {
     const div = document.createElement("div");
     div.textContent = this.lineNumber.toString();
-    div.className = this.isActive
+    div.className = this.isActive && this.mode !== "absolute"
       ? "cm-gutterElement active-gutter-highlight"
       : "cm-gutterElement";
     return div;
@@ -33,8 +35,9 @@ class LineNumberMarker extends GutterMarker {
   /* return true if the other marker has the same line number to skip re-rendering markers with the same line number */
   eq(other: GutterMarker): boolean {
     return other instanceof LineNumberMarker &&
-      other.lineNumber === this.lineNumber;
-
+      other.lineNumber === this.lineNumber &&
+      other.isActive === this.isActive &&
+      other.mode === this.mode;
   }
 }
 
@@ -46,14 +49,15 @@ const createLineNumberGutter = (settings: LineNumbersSettings) => gutter({
     const cursorPosition = view.state.field(cursorPositionField);
     const lineNumber = view.state.doc.lineAt(line.from).number;
     const isActive = cursorPosition.lineNumber === lineNumber;
+    const mode = settings.mode;
 
-    if (settings.mode === "relative") {
-      return new LineNumberMarker(Math.abs(cursorPosition.lineNumber - lineNumber), isActive);
-    }else if(settings.mode === "hybrid") {
-      if(cursorPosition.lineNumber === lineNumber) return new LineNumberMarker(lineNumber, isActive);
-      else return new LineNumberMarker(Math.abs(cursorPosition.lineNumber - lineNumber), isActive);
+    if (mode === "relative") {
+      return new LineNumberMarker(Math.abs(cursorPosition.lineNumber - lineNumber), isActive, mode);
+    }else if(mode === "hybrid") {
+      if(cursorPosition.lineNumber === lineNumber) return new LineNumberMarker(lineNumber, isActive, mode);
+      else return new LineNumberMarker(Math.abs(cursorPosition.lineNumber - lineNumber), isActive, mode);
     }
-    return new LineNumberMarker(lineNumber, isActive);
+    return new LineNumberMarker(lineNumber, isActive, mode);
   },
 
   /*
