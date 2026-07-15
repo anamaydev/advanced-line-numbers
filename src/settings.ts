@@ -5,12 +5,14 @@ import LineNumbersPlugin from "./main";
 export interface LineNumbersSettings {
 	mode: "absolute" | "relative" | "hybrid";
 	showCursorPositionInStatusBar: boolean;
+	showActiveLineHighlight: boolean;
 }
 
 /* default settings  */
 export const DEFAULT_SETTINGS: LineNumbersSettings = {
 	mode: "hybrid",
 	showCursorPositionInStatusBar: true,
+	showActiveLineHighlight: true,
 }
 
 /* setting tab displayed in Obsidian's plugin settings panel */
@@ -44,7 +46,8 @@ export class LineNumbersSettingTab extends PluginSettingTab {
 						this.plugin.settings.mode = value as "absolute" | "relative" | "hybrid";
 						void this.plugin.saveSettings();
 
-						/* notify the editor that extensions need rebuilding
+						/*
+						* notify the editor that extensions need rebuilding
 						* so the gutter immediately reflects the new line number mode
 						* */
 						this.plugin.refreshExtensions();
@@ -63,6 +66,21 @@ export class LineNumbersSettingTab extends PluginSettingTab {
 						this.plugin.settings.showCursorPositionInStatusBar = value;
 						void this.plugin.saveSettings();
 						this.plugin.updateStatusBarVisibility();
+					})
+			);
+
+		/* toggle setting for highlighting the cursor's active line in the editor */
+		new Setting(containerEl)
+			.setName("Highlight active line")
+			.setDesc("Highlight the line the cursor is on in the editor. Turn this off if your theme already provides its own active line highlight.")
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.showActiveLineHighlight)
+					/* persists the toggle state to settings on change */
+					.onChange((value) => {
+						this.plugin.settings.showActiveLineHighlight = value;
+						void this.plugin.saveSettings();
+						this.plugin.refreshExtensions();
 					})
 			);
 	}
