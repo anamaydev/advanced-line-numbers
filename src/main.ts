@@ -26,7 +26,7 @@ class LineNumberMarker extends GutterMarker {
 
   /* create the DOM element that displays the line number */
   toDOM(): HTMLElement {
-    const div = document.createElement("div");
+    const div = createDiv();
     div.textContent = this.lineNumber.toString();
     div.className = this.highlightActive && this.isActive && this.mode !== "absolute"
       ? "cm-gutterElement active-gutter-highlight"

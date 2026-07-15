@@ -8,6 +8,16 @@ export default tseslint.config(
 		languageOptions: {
 			globals: {
 				...globals.browser,
+				/* globals Obsidian injects at runtime (see obsidian.d.ts) */
+				createEl: "readonly",
+				createDiv: "readonly",
+				createSpan: "readonly",
+				createFragment: "readonly",
+				activeDocument: "readonly",
+				activeWindow: "readonly",
+				fish: "readonly",
+				fishAll: "readonly",
+				sleep: "readonly",
 			},
 			parserOptions: {
 				projectService: {
