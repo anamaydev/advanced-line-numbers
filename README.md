@@ -13,6 +13,7 @@ An Obsidian plugin that enhances the editor with customizable line numbers and a
 - Highlight the active line in the editor
 - Highlight the active line in the gutter
 - Highlight the active line number with a distinct color
+- Can be toggled off entirely if your theme provides its own active line highlight
 
 ### Status Bar
 - Displays cursor's position (Ln X, Col Y)
@@ -43,10 +44,20 @@ An Obsidian plugin that enhances the editor with customizable line numbers and a
 4. Reload Obsidian and enable the plugin in Settings → Community Plugins
 
 ## Settings
-| Setting                   | Description                                  |
-|---------------------------|----------------------------------------------|
-| Line Number Mode          | Choose between Absolute, Relative, or Hybrid |
-| Display Cursor's Position | Toggle on and off                            |
+| Setting                             | Description                                                                      |
+|-------------------------------------|----------------------------------------------------------------------------------|
+| Line Number Mode                    | Choose between Absolute, Relative, or Hybrid                                      |
+| Show cursor position in status bar  | Toggle the `Ln X, Col Y` status bar item on and off                              |
+| Highlight active line               | Toggle the editor and gutter active line highlight on and off                     |
+
+## Commands
+All settings can also be toggled via the command palette:
+
+| Command                                        | Description                                          |
+|------------------------------------------------|------------------------------------------------------|
+| Set line numbering: absolute / relative / hybrid | Switch the line numbering mode                       |
+| Enable / Disable cursor position               | Show or hide the cursor position in the status bar   |
+| Enable / Disable active line highlight         | Show or hide the editor and gutter active line highlight |
 
 ## Development
 ```bash

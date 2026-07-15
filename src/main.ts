@@ -14,19 +14,21 @@ class LineNumberMarker extends GutterMarker {
   lineNumber: number;
   isActive: boolean;
   mode: "absolute" | "relative" | "hybrid";
+  highlightActive: boolean;
 
-  constructor(lineNumber: number, isActive: boolean, mode: "absolute" | "relative" | "hybrid") {
+  constructor(lineNumber: number, isActive: boolean, mode: "absolute" | "relative" | "hybrid", highlightActive: boolean) {
     super();
     this.lineNumber = lineNumber;
     this.isActive = isActive;
     this.mode = mode;
+    this.highlightActive = highlightActive;
   }
 
   /* create the DOM element that displays the line number */
   toDOM(): HTMLElement {
     const div = document.createElement("div");
     div.textContent = this.lineNumber.toString();
-    div.className = this.isActive && this.mode !== "absolute"
+    div.className = this.highlightActive && this.isActive && this.mode !== "absolute"
       ? "cm-gutterElement active-gutter-highlight"
       : "cm-gutterElement";
     return div;
@@ -37,7 +39,8 @@ class LineNumberMarker extends GutterMarker {
     return other instanceof LineNumberMarker &&
       other.lineNumber === this.lineNumber &&
       other.isActive === this.isActive &&
-      other.mode === this.mode;
+      other.mode === this.mode &&
+      other.highlightActive === this.highlightActive;
   }
 }
 
@@ -50,14 +53,15 @@ const createLineNumberGutter = (settings: LineNumbersSettings) => gutter({
     const lineNumber = view.state.doc.lineAt(line.from).number;
     const isActive = cursorPosition.lineNumber === lineNumber;
     const mode = settings.mode;
+    const highlightActive = settings.showActiveLineHighlight;
 
     if (mode === "relative") {
-      return new LineNumberMarker(Math.abs(cursorPosition.lineNumber - lineNumber), isActive, mode);
+      return new LineNumberMarker(Math.abs(cursorPosition.lineNumber - lineNumber), isActive, mode, highlightActive);
     }else if(mode === "hybrid") {
-      if(cursorPosition.lineNumber === lineNumber) return new LineNumberMarker(lineNumber, isActive, mode);
-      else return new LineNumberMarker(Math.abs(cursorPosition.lineNumber - lineNumber), isActive, mode);
+      if(cursorPosition.lineNumber === lineNumber) return new LineNumberMarker(lineNumber, isActive, mode, highlightActive);
+      else return new LineNumberMarker(Math.abs(cursorPosition.lineNumber - lineNumber), isActive, mode, highlightActive);
     }
-    return new LineNumberMarker(lineNumber, isActive, mode);
+    return new LineNumberMarker(lineNumber, isActive, mode, highlightActive);
   },
 
   /*
@@ -96,7 +100,7 @@ const cursorPositionField = StateField.define<CursorData>({
 })
 
 /* create a ViewPlugin that recalculates and displays the cursor's line and column on every editor update */
-const createCursorPositionPlugin = (statusBarItemElement: HTMLElement) => {
+const createCursorPositionPlugin = (statusBarItemElement: HTMLElement, settings: LineNumbersSettings) => {
   return ViewPlugin.define<{ decorations: DecorationSet; update(u: ViewUpdate): void; destroy(): void }>(() => ({
     decorations: Decoration.none,
 
@@ -105,11 +109,13 @@ const createCursorPositionPlugin = (statusBarItemElement: HTMLElement) => {
         const cursorPosition = update.state.field(cursorPositionField);
         statusBarItemElement.setText(`Ln ${cursorPosition.lineNumber}, Col ${cursorPosition.columnNumber}`);
 
-        const line = update.state.doc.lineAt(update.state.selection.main.head);
-        /* add a line decoration on the cursor's current line */
-        this.decorations = Decoration.set([
-          Decoration.line({ class: "active-line-highlight" }).range(line.from)
-        ]);
+        /* add a line decoration on the cursor's current line, unless the highlight is disabled */
+        if (settings.showActiveLineHighlight) {
+          const line = update.state.doc.lineAt(update.state.selection.main.head);
+          this.decorations = Decoration.set([
+            Decoration.line({ class: "active-line-highlight" }).range(line.from)
+          ]);
+        }
       }
     },
 
@@ -170,13 +176,31 @@ export default class LineNumbersPlugin extends Plugin {
           void this.saveSettings();
           this.updateStatusBarVisibility();
           return;
-        },});
+        },
+      });
+    });
+
+    /* command for toggling the active line highlight */
+    cursorPositionState.forEach((value, key) => {
+      this.addCommand({
+        id: `${key}-active-line-highlight`,
+        name: `${key.charAt(0).toUpperCase()}${key.slice(1)} active line highlight`,
+        checkCallback: (checking: boolean) => {
+          if (checking)
+            return this.settings.showActiveLineHighlight !== value;
+
+          this.settings.showActiveLineHighlight = value;
+          void this.saveSettings();
+          this.refreshExtensions();
+          return;
+        },
+      });
     });
 
     /* register CodeMirror extensions for cursor tracking, status bar, and line gutter */
     this.editorExtensions = [
       cursorPositionField,
-      createCursorPositionPlugin(this.statusBarItemElement),
+      createCursorPositionPlugin(this.statusBarItemElement, this.settings),
       createLineNumberGutter(this.settings)
     ]
     this.registerEditorExtension(this.editorExtensions);
@@ -206,7 +230,7 @@ export default class LineNumbersPlugin extends Plugin {
     /* push fresh extensions that capture the updated settings */
     this.editorExtensions.push(
       cursorPositionField,
-      createCursorPositionPlugin(this.statusBarItemElement),
+      createCursorPositionPlugin(this.statusBarItemElement, this.settings),
       createLineNumberGutter(this.settings)     /* capture current settings.mode*/
     );
     this.app.workspace.updateOptions();         /* force Obsidian to re-apply extensions */
