@@ -13,10 +13,10 @@ interface CursorData {
 class LineNumberMarker extends GutterMarker {
   lineNumber: number;
   isActive: boolean;
-  mode: "absolute" | "relative" | "hybrid";
+  mode: "absolute" | "relative" | "hybrid" | "off";
   highlightActive: boolean;
 
-  constructor(lineNumber: number, isActive: boolean, mode: "absolute" | "relative" | "hybrid", highlightActive: boolean) {
+  constructor(lineNumber: number, isActive: boolean, mode: "absolute" | "relative" | "hybrid" | "off", highlightActive: boolean) {
     super();
     this.lineNumber = lineNumber;
     this.isActive = isActive;
@@ -139,8 +139,8 @@ export default class LineNumbersPlugin extends Plugin {
     /* create status bar item */
     this.statusBarItemElement = this.addStatusBarItem();
 
-    const lineNumberModes: Array<"absolute" | "relative" | "hybrid"> = [
-      "absolute", "relative", "hybrid"
+    const lineNumberModes: Array<"absolute" | "relative" | "hybrid" | "off"> = [
+      "absolute", "relative", "hybrid", "off"
     ];
     const cursorPositionState = new Map<string, boolean>([
       ["enable", true], ["disable", false]
@@ -157,6 +157,7 @@ export default class LineNumbersPlugin extends Plugin {
 
           this.settings.mode = mode;
           void this.saveSettings();
+          this.refreshExtensions();
           return;
         },
       });
@@ -201,7 +202,7 @@ export default class LineNumbersPlugin extends Plugin {
     this.editorExtensions = [
       cursorPositionField,
       createCursorPositionPlugin(this.statusBarItemElement, this.settings),
-      createLineNumberGutter(this.settings)
+      ...(this.settings.mode !== "off" ? [createLineNumberGutter(this.settings)] : [])
     ]
     this.registerEditorExtension(this.editorExtensions);
 
@@ -231,7 +232,8 @@ export default class LineNumbersPlugin extends Plugin {
     this.editorExtensions.push(
       cursorPositionField,
       createCursorPositionPlugin(this.statusBarItemElement, this.settings),
-      createLineNumberGutter(this.settings)     /* capture current settings.mode*/
+      /* capture current settings.mode; omit the gutter entirely when mode is "off" */
+      ...(this.settings.mode !== "off" ? [createLineNumberGutter(this.settings)] : [])
     );
     this.app.workspace.updateOptions();         /* force Obsidian to re-apply extensions */
   }
