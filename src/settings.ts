@@ -1,9 +1,12 @@
 import {App, PluginSettingTab, Setting, SettingDefinitionItem} from "obsidian";
 import LineNumbersPlugin from "./main";
 
+export type LineNumberMode = "absolute" | "relative" | "hybrid" | "off";
+
 /* defines the shape of the plugin's settings object */
 export interface LineNumbersSettings {
-	mode: "absolute" | "relative" | "hybrid" | "off";
+	mode: LineNumberMode;
+	canvasMode: "same" | "off";
 	showCursorPositionInStatusBar: boolean;
 	showActiveLineHighlight: boolean;
 }
@@ -11,6 +14,7 @@ export interface LineNumbersSettings {
 /* default settings  */
 export const DEFAULT_SETTINGS: LineNumbersSettings = {
 	mode: "hybrid",
+	canvasMode: "same",
 	showCursorPositionInStatusBar: true,
 	showActiveLineHighlight: true,
 }
@@ -40,6 +44,19 @@ export class LineNumbersSettingTab extends PluginSettingTab {
 						absolute: "Absolute",
 						relative: "Relative",
 						hybrid: "Hybrid",
+						off: "Off",
+					},
+				},
+			},
+			{
+				name: "Canvas line numbering mode",
+				desc: "Line numbers inside canvas text cards. Choose off to hide them and reclaim horizontal space in small cards.",
+				control: {
+					type: "dropdown",
+					key: "canvasMode",
+					defaultValue: DEFAULT_SETTINGS.canvasMode,
+					options: {
+						same: "Same as notes",
 						off: "Off",
 					},
 				},
@@ -75,7 +92,7 @@ export class LineNumbersSettingTab extends PluginSettingTab {
 		(this.plugin.settings as unknown as Record<string, unknown>)[key] = value;
 		await this.plugin.saveSettings();
 
-		if (key === "mode" || key === "showActiveLineHighlight") {
+		if (key === "mode" || key === "canvasMode" || key === "showActiveLineHighlight") {
 			this.plugin.refreshExtensions();
 		} else if (key === "showCursorPositionInStatusBar") {
 			this.plugin.updateStatusBarVisibility();
@@ -100,13 +117,29 @@ export class LineNumbersSettingTab extends PluginSettingTab {
 					.setValue(this.plugin.settings.mode)
 					/* persists the selected mode to settings on change */
 					.onChange((value) => {
-						this.plugin.settings.mode = value as "absolute" | "relative" | "hybrid" | "off";
+						this.plugin.settings.mode = value as LineNumberMode;
 						void this.plugin.saveSettings();
 
 						/*
 						* notify the editor that extensions need rebuilding
 						* so the gutter immediately reflects the new line number mode
 						* */
+						this.plugin.refreshExtensions();
+					})
+			);
+
+		/* dropdown setting for the line numbering mode used inside canvas cards */
+		new Setting(containerEl)
+			.setName("Canvas line numbering mode")
+			.setDesc("Line numbers inside canvas text cards. Choose off to hide them and reclaim horizontal space in small cards.")
+			.addDropdown((dropdown) =>
+				dropdown
+					.addOption("same", "Same as notes")
+					.addOption("off", "Off")
+					.setValue(this.plugin.settings.canvasMode)
+					.onChange((value) => {
+						this.plugin.settings.canvasMode = value as LineNumbersSettings["canvasMode"];
+						void this.plugin.saveSettings();
 						this.plugin.refreshExtensions();
 					})
 			);

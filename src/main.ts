@@ -1,7 +1,8 @@
 import {MarkdownView, Plugin} from "obsidian";
 import {ViewUpdate, ViewPlugin, EditorView, gutter, GutterMarker, BlockInfo, Decoration, DecorationSet} from "@codemirror/view";
 import {StateField, EditorState, Transaction, Text, Extension} from "@codemirror/state";
-import { LineNumbersSettings, DEFAULT_SETTINGS, LineNumbersSettingTab} from "./settings";
+import { LineNumbersSettings, LineNumberMode, DEFAULT_SETTINGS, LineNumbersSettingTab} from "./settings";
+import { createGutterVisibility, isCanvasEditor, resolveMode } from "./mode";
 
 /* data representing the cursor's current position in the editor */
 interface CursorData {
@@ -13,10 +14,10 @@ interface CursorData {
 class LineNumberMarker extends GutterMarker {
   lineNumber: number;
   isActive: boolean;
-  mode: "absolute" | "relative" | "hybrid" | "off";
+  mode: LineNumberMode;
   highlightActive: boolean;
 
-  constructor(lineNumber: number, isActive: boolean, mode: "absolute" | "relative" | "hybrid" | "off", highlightActive: boolean) {
+  constructor(lineNumber: number, isActive: boolean, mode: LineNumberMode, highlightActive: boolean) {
     super();
     this.lineNumber = lineNumber;
     this.isActive = isActive;
@@ -52,8 +53,10 @@ const createLineNumberGutter = (settings: LineNumbersSettings) => gutter({
     const cursorPosition = view.state.field(cursorPositionField);
     const lineNumber = view.state.doc.lineAt(line.from).number;
     const isActive = cursorPosition.lineNumber === lineNumber;
-    const mode = settings.mode;
+    const mode = resolveMode(settings, isCanvasEditor(view));
     const highlightActive = settings.showActiveLineHighlight;
+
+    if (mode === "off") return null;
 
     if (mode === "relative") {
       return new LineNumberMarker(Math.abs(cursorPosition.lineNumber - lineNumber), isActive, mode, highlightActive);
@@ -139,9 +142,8 @@ export default class LineNumbersPlugin extends Plugin {
     /* create status bar item */
     this.statusBarItemElement = this.addStatusBarItem();
 
-    const lineNumberModes: Array<"absolute" | "relative" | "hybrid" | "off"> = [
-      "absolute", "relative", "hybrid", "off"
-    ];
+    const lineNumberModes: LineNumberMode[] = ["absolute", "relative", "hybrid", "off"];
+    const canvasModes: Array<LineNumbersSettings["canvasMode"]> = ["same", "off"];
     const cursorPositionState = new Map<string, boolean>([
       ["enable", true], ["disable", false]
     ]);
@@ -156,6 +158,23 @@ export default class LineNumbersPlugin extends Plugin {
             return this.settings.mode !== mode;
 
           this.settings.mode = mode;
+          void this.saveSettings();
+          this.refreshExtensions();
+          return;
+        },
+      });
+    });
+
+    /* commands for setting the canvas line numbering mode */
+    canvasModes.forEach((mode) => {
+      this.addCommand({
+        id: `set-canvas-line-numbering-${mode}`,
+        name: `Set canvas line numbering: ${mode}`,
+        checkCallback: (checking: boolean) => {
+          if (checking)
+            return this.settings.canvasMode !== mode;
+
+          this.settings.canvasMode = mode;
           void this.saveSettings();
           this.refreshExtensions();
           return;
@@ -199,11 +218,7 @@ export default class LineNumbersPlugin extends Plugin {
     });
 
     /* register CodeMirror extensions for cursor tracking, status bar, and line gutter */
-    this.editorExtensions = [
-      cursorPositionField,
-      createCursorPositionPlugin(this.statusBarItemElement, this.settings),
-      ...(this.settings.mode !== "off" ? [createLineNumberGutter(this.settings)] : [])
-    ]
+    this.editorExtensions = this.buildEditorExtensions();
     this.registerEditorExtension(this.editorExtensions);
 
     /* hide/show the status bar item depending on whether the active leaf is a Markdown file */
@@ -224,17 +239,21 @@ export default class LineNumbersPlugin extends Plugin {
     this.updateStatusBarVisibility();
   }
 
+  private buildEditorExtensions(): Extension[] {
+    return [
+      cursorPositionField,
+      createCursorPositionPlugin(this.statusBarItemElement, this.settings),
+      /* omit the gutter entirely when mode is "off"; canvas "off" is handled per editor */
+      ...(this.settings.mode !== "off" ? [createLineNumberGutter(this.settings), createGutterVisibility(this.settings)] : [])
+    ];
+  }
+
   refreshExtensions(): void {
     /* clear without creating a new array (empties the array so the same reference is reused */
     this.editorExtensions.length = 0;
 
     /* push fresh extensions that capture the updated settings */
-    this.editorExtensions.push(
-      cursorPositionField,
-      createCursorPositionPlugin(this.statusBarItemElement, this.settings),
-      /* capture current settings.mode; omit the gutter entirely when mode is "off" */
-      ...(this.settings.mode !== "off" ? [createLineNumberGutter(this.settings)] : [])
-    );
+    this.editorExtensions.push(...this.buildEditorExtensions());
     this.app.workspace.updateOptions();         /* force Obsidian to re-apply extensions */
   }
 

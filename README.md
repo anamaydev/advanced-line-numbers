@@ -47,6 +47,7 @@ An Obsidian plugin that enhances the editor with customizable line numbers and a
 | Setting                             | Description                                                                      |
 |-------------------------------------|----------------------------------------------------------------------------------|
 | Line Number Mode                    | Choose between Absolute, Relative, or Hybrid                                      |
+| Canvas Line Number Mode             | Same as notes (default) or Off for canvas text cards |
 | Show cursor position in status bar  | Toggle the `Ln X, Col Y` status bar item on and off                              |
 | Highlight active line               | Toggle the editor and gutter active line highlight on and off                     |
 
@@ -55,7 +56,8 @@ All settings can also be toggled via the command palette:
 
 | Command                                        | Description                                          |
 |------------------------------------------------|------------------------------------------------------|
-| Set line numbering: absolute / relative / hybrid | Switch the line numbering mode                       |
+| Set line numbering: absolute / relative / hybrid / off | Switch the line numbering mode                 |
+| Set canvas line numbering: same / off          | Show the notes mode in canvas cards, or hide it      |
 | Enable / Disable cursor position               | Show or hide the cursor position in the status bar   |
 | Enable / Disable active line highlight         | Show or hide the editor and gutter active line highlight |
 
